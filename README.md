@@ -1,1 +1,1 @@
-# bt4222-group12
+# this is repo for bt4222 project of group 12
