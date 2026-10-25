@@ -1,0 +1,8 @@
+Feature Name,Cardinality,Missing (%),Planned Representation
+*category_id*,18,0 (0.00%),Learned 16-dim embedding
+*subcategory_id*,270,0 (0.00%),Learned 32-dim embedding
+*session_hour*,24,0 (0.00%),Cyclic encoding / learned embedding
+*session_dow*,7,0 (0.00%),Learned embedding / one-hot
+*inactivity_bin*,4 + new-user state,"94,057 (40.87%)*",One-hot / learned embedding with [NEW_USER] state
+*category_match*,2,0 (0.00%),Binary
+*has_history*,2,0 (0.00%),Binary
