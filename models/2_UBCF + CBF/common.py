@@ -10,6 +10,7 @@ definitions:
   * identical negative-sampling policy             -> sample_negatives()
   * same metrics: MRR, nDCG@5, nDCG@10, AUC -> evaluate()
   * same cold-start definitions                    -> add_cold_start_flags()
+  * same user groups for reporting (cold/sparse/warm) -> user_history_groups()
   * same output format                             -> save_scores() / load_scores()
 
 Banned features (slate_length, article_recency, session_dow) are never computed here.
@@ -17,6 +18,8 @@ Banned features (slate_length, article_recency, session_dow) are never computed 
 from __future__ import annotations
 
 import os
+from functools import lru_cache
+
 import numpy as np
 import pandas as pd
 
@@ -45,6 +48,11 @@ PHASES = {
 
 NEG_K = 4            # group negative-sampling policy: K negatives per positive (stacker training only)
 KS = (5, 10)         # nDCG@K cut-offs
+WARM_MIN_HISTORY = 5 # user groups: cold = 0, sparse = 1-4, warm = >=5 articles in `history`
+COLD_SEG = "Cold users (0 history)"
+SPARSE_SEG = "Sparse users (1-4 history)"
+WARM_SEG = "Warm users (>=5 history)"
+USER_SEGS = (COLD_SEG, SPARSE_SEG, WARM_SEG)
 
 # Shared output format: one row per impression-candidate pair
 OUTPUT_COLS = ["imp_id", "user_id", "news_id", "label", "score", "available",
@@ -214,6 +222,17 @@ def add_cold_start_flags(c: pd.DataFrame, beh: pd.DataFrame, build_log: pd.DataF
     return c
 
 
+@lru_cache(maxsize=1)
+def user_history_groups() -> pd.Series:
+    """imp_id -> reporting group, from the length of the impression's raw MIND `history`
+    (same definition as the MLP's cold_user / sparse_user / warm_user slices).
+    Evaluation only: unlike user_cold it ignores clicks in the build window, so a user
+    in the cold group can still have build-window clicks for the base models to use."""
+    n = load_behaviors().set_index("imp_id")["history"].str.len()
+    return pd.Series(np.select([n == 0, n < WARM_MIN_HISTORY], [COLD_SEG, SPARSE_SEG], WARM_SEG),
+                     index=n.index)
+
+
 # --------------------------------------------------------------------------
 # Shared missing-value treatment & negative sampling
 # --------------------------------------------------------------------------
@@ -254,7 +273,7 @@ def evaluate(df: pd.DataFrame, score_col: str = "score", ks=KS, seed: int = SEED
     Impressions without a click are dropped; AUC is averaged over impressions with
     at least one positive and one negative.
     """
-    need = ["imp_id", "label", score_col, "user_cold", "item_cold"]
+    need = ["imp_id", "label", score_col, "item_cold"]
     d = df[[c for c in need if c in df.columns]].copy()
     if d[score_col].isna().any():
         raise ValueError(f"{score_col} has NaNs - impute (train mean) before evaluating")
@@ -284,17 +303,16 @@ def evaluate(df: pd.DataFrame, score_col: str = "score", ks=KS, seed: int = SEED
     imp["AUC"] = auc.where(nneg > 0)
 
     metric_cols = ["MRR"] + [f"nDCG@{k}" for k in ks] + ["AUC"]
-    if not by_segment or "user_cold" not in d.columns:
+    if not by_segment or "item_cold" not in d.columns:
         out = imp[metric_cols].mean().to_frame("All").T
         out.insert(0, "impressions", len(imp))
         return out
 
-    ucold = d.groupby("imp_id")["user_cold"].first().reindex(imp.index)
+    ugroup = user_history_groups().reindex(imp.index)
     pos_item_cold = pos.groupby("imp_id")["item_cold"].max().reindex(imp.index)
     segs = {
         "All": np.ones(len(imp), bool),
-        "Warm users": (ucold == 0).to_numpy(),
-        "Cold users (0 clicks)": (ucold == 1).to_numpy(),
+        **{seg: (ugroup == seg).to_numpy() for seg in USER_SEGS},
         "Clicked article seen before": (pos_item_cold == 0).to_numpy(),
         "Clicked article new (no prior clicks)": (pos_item_cold == 1).to_numpy(),
     }
