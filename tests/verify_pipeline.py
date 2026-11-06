@@ -183,7 +183,6 @@ with tempfile.TemporaryDirectory(prefix="group12-fixture-") as tmp:
         "models/4_base_models/4_3_cbf.ipynb",
         "models/5_ubcf_cbf/5_1_ubcf.ipynb",
         "models/5_ubcf_cbf/5_2_cbf.ipynb",
-        "models/5_ubcf_cbf/5_3_popularity.ipynb",
         "models/5_ubcf_cbf/5_4_stacking.ipynb",
         "models/6_mlp/6_1_mlp.ipynb",
         "models/6_mlp/6_2_mlp_attention.ipynb",
@@ -191,6 +190,21 @@ with tempfile.TemporaryDirectory(prefix="group12-fixture-") as tmp:
         "models/7_nrms/7_1_nrms_popularity_gated.ipynb",
     ]:
         scope = execute(p, limited)
+        if p.endswith("4_5_popularity_smoothed.ipynb"):
+            assert scope["stack_prior"] == scope["cand"].loc[
+                scope["cand"]["day"] < scope["stack_day"], "label"
+            ].mean()
+            assert scope["phase_cutoffs"] == {"stack_train": 4, "val": 5, "test": 6}
+        if p.endswith("5_4_stacking.ipynb"):
+            for phase, table in scope["data"].items():
+                canonical = scope["load_table"](
+                    scope["PATHS"]["outputs"] / "base_models" / "popularity_smoothed" / f"{phase}_scores"
+                )
+                check = table.merge(canonical[["impression_id", "news_id", "score"]],
+                                    on=["impression_id", "news_id"], validate="one_to_one")
+                assert np.array_equal(check["pop_ctr"].to_numpy(), check["score"].to_numpy())
+                assert check["pop_available"].eq(1).all()
+            print("PASS stacking uses exact canonical 4_5 scores for all phases")
         if p.endswith("7_1_nrms_popularity_gated.ipynb"):
             reference = scope["NRMS"](
                 scope["pretrained_embeddings"], scope["news_title_lookup"]

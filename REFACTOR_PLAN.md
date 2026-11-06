@@ -42,7 +42,6 @@ bt4222-group12/
 │   ├── 5_ubcf_cbf/
 │   │   ├── 5_1_ubcf.ipynb
 │   │   ├── 5_2_cbf.ipynb
-│   │   ├── 5_3_popularity.ipynb
 │   │   └── 5_4_stacking.ipynb
 │   ├── 6_mlp/
 │   │   ├── 6_1_mlp.ipynb
@@ -79,7 +78,7 @@ bt4222-group12/
     └── processed/
 ```
 
-The existing hybrid popularity notebook uses smoothed CTR, validation tuning and an optional online policy. Preserve it as 5_3_popularity.ipynb, distinct from the new basic training click-count baseline. Stacking continues to consume the compatible smoothed-CTR phase artifacts; do not substitute basic popularity scores and change its input semantics. Label optional online results separately because their information window differs from the frozen baseline.
+Smoothed popularity has one canonical producer: 4_5_popularity_smoothed.ipynb. It exports validation/test scores under its fixed-alpha daily policy and an earlier-window stack-training block with a prior fitted only before that block. Stacking reads those files directly. The duplicate tuned/online hybrid popularity notebook is removed.
 
 Keep actual source dataset names and downloaded folder layouts accessible through configuration. Distinguish development-source folders from temporal validation/test partitions without changing observation membership.
 

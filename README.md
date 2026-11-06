@@ -8,7 +8,7 @@ MIND-small news recommendation: data exploration, shared preparation, basic reco
 - `data_preparation/2_preprocessing.ipynb`: source tables, global impression identities and temporal partitions.
 - `data_preparation/3_feature_engineering.ipynb`: all feature preparation, model input exports and final MLP-specific sections.
 - `models/4_base_models/`: basic popularity, UBCF, CBF and original-architecture NRMS.
-- `models/5_ubcf_cbf/`: advanced UBCF, CBF, smoothed CTR popularity and stacking, in numbered execution order.
+- `models/5_ubcf_cbf/`: advanced UBCF, CBF and stacking. Popularity scores come from `4_5_popularity_smoothed.ipynb`.
 - `models/6_mlp/6_1_mlp.ipynb`: initial and improved MLP experiments in separate, fully configured sections with separate outputs.
 - `models/6_mlp/6_2_mlp_attention.ipynb`: improved MLP and history-attention comparison.
 - `models/7_nrms/7_1_nrms_popularity_gated.ipynb`: gated training, measured seed runs, optional self-attention ablation and paired comparisons. NRMS has two notebooks across the project, including its baseline.
@@ -43,7 +43,7 @@ Drive mode retains `/content/drive/MyDrive/Y4S1/BT4222` and its `MLP` feature fo
 1. Run `2_preprocessing.ipynb` to export source-aware tables and the 5-1-1 partition.
 2. Run `3_feature_engineering.ipynb` to prepare all required inputs, including MLP standardization and attention histories. Its metadata documents canonical names and distinct index spaces. Article-based consumers use the same MiniLM content vectors and normalized TransE entity vectors; missing entity vectors are zero. No second CBF text encoder or fallback representation is generated.
 3. Run `1_eda.ipynb`. The raw-data sections can run after preprocessing; the descriptive sections calculate statistics directly from the preprocessed tables. EDA is not an upstream dependency of model fitting.
-4. Run the required baseline notebooks independently. For hybrid stacking, run `5_1` through `5_4` in order: each scorer produces separate stack-training, validation and test score artifacts using the original build windows.
+4. Run the required baseline notebooks independently. For hybrid stacking, finish `4_5` (including its final stacking export), `5_1` and `5_2`, then run `5_4`. The stacker consumes canonical 4_5 popularity scores rather than a separately tuned popularity model.
 5. Run the MLP or NRMS experiments. Initial/improved MLP experiments use separate directories. Enable NRMS paired comparisons only after the reference and gated seed checkpoints have been generated with the advanced notebook's matching evaluation protocol.
 
 Training, ablation and multi-seed cells can be expensive. Their original defaults are retained. Model notebooks load prepared features rather than running feature engineering through notebook execution.
@@ -82,10 +82,12 @@ Run in this order:
 2. `1_eda.ipynb` (CPU; can run independently after preprocessing).
 3. `3_feature_engineering.ipynb` (GPU recommended; needs MiniLM download and GloVe). Finish the final **Completed feature bundle** cell.
 4. Baselines `4_1` through `4_5` (independent; GPU recommended for NRMS).
-5. Hybrid scorers `5_1`, `5_2`, `5_3`, then `5_4` stacking. Use the same output root for these four notebooks.
+5. Finish `4_5` popularity, `5_1` UBCF and `5_2` CBF, then `5_4` stacking. Use the same output root for these notebooks.
 6. `6_1_mlp.ipynb`, `6_2_mlp_attention.ipynb` (GPU recommended).
 7. `7_1_nrms_popularity_gated.ipynb` (GPU recommended). Inspect optional multi-seed/ablation switches and budgets before running expensive sections.
 
 All notebooks in one experiment use the same `RUN_NAME`; the models have separate subfolders. Use `run_02` for a fresh experiment instead of reusing `run_01`. `initial` and `improved` are MLP variants, not run counters. Save/download each executed notebook to retain its displayed outputs; experiment artifacts are written separately to `BASE/runs/RUN_NAME/`.
 
 MLP and NRMS validate only the exported feature bundle and can use it without raw files. EDA, popularity and hybrid workflows also use preprocessed tables. When raw inputs are available, loading preprocessing verifies their content hashes rather than absolute paths or timestamps. A feature bundle is published only after all exports complete; changed/missing files are rejected. Output roots record the feature identity so checkpoints cannot silently cross prepared datasets.
+
+The `4_5` final export writes `stack_train_scores`, `val_scores` and `test_scores` under `base_models/popularity_smoothed/`, plus `stacking_scores.json` with dataset provenance, phase cutoffs, priors and file hashes. Stack-training scores use days 0–3 to score day 4; their prior also uses only days 0–3. Validation/test retain the original 4_5 scoring policy. The former `5_3_popularity.ipynb` is removed. After updating, run 4_5 through its final cell and rerun 5_4; existing compatible UBCF/CBF scores can be reused. No feature regeneration is required for this scoring change.

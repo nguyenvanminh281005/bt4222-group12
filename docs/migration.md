@@ -53,3 +53,7 @@ EDA computes descriptive features from preprocessed tables, uses the earliest im
 ## Portable feature bundles and Colab setup
 
 Pipeline notebooks include an optional Colab setup cell. Source signatures use content hashes; the final feature manifest is published after all exports. MLP/NRMS validation works after relocation without raw files. Missing/changed exported contents and output roots bound to another feature identity are rejected. MLP reusable-run specifications include the feature identity; attention settings also record both categorical widths. Existing bundles without a manifest must be regenerated. These changes do not change model formulas or split membership.
+
+## Canonical popularity scores for stacking
+
+The tuned/online hybrid popularity notebook is removed. `4_5_popularity_smoothed.ipynb` exports the same canonical validation/test scores for stacking, plus a final-training-day block scored using only earlier days and an earlier-days CTR prior. `5_4` checks score file hashes and source provenance before keyed joins. Prior historical comparisons using the removed scorer do not describe this updated hybrid experiment. There are now 15 active notebooks.
