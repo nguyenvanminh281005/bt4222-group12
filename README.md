@@ -1,140 +1,93 @@
-# BT4222 Mining Web Data for Business Insights - Group 12
+# BT4222 Group 12
 
-This repository contains the source code, notebooks, and deliverables for the BT4222 group project.
+MIND-small news recommendation: data exploration, shared preparation, basic recommenders, hybrid ranking, feature-selected MLP and popularity-gated NRMS.
 
----
+## Structure
 
-## 📌 Project Pipeline & Workflow Stages
+- `data_preparation/1_eda.ipynb`: consolidated interaction, feedback, sparsity, popularity, content and temporal analysis.
+- `data_preparation/2_preprocessing.ipynb`: source tables, global impression identities and temporal partitions.
+- `data_preparation/3_feature_engineering.ipynb`: all feature preparation, model input exports and final MLP-specific sections.
+- `models/4_base_models/`: basic popularity, UBCF, CBF and original-architecture NRMS.
+- `models/5_ubcf_cbf/`: advanced UBCF, CBF and stacking. Popularity scores come from `4_5_popularity_smoothed.ipynb`.
+- `models/6_mlp/6_1_mlp.ipynb`: initial and improved MLP experiments in separate, fully configured sections with separate outputs.
+- `models/6_mlp/6_2_mlp_attention.ipynb`: improved MLP and history-attention comparison.
+- `models/7_nrms/7_1_nrms_popularity_gated.ipynb`: gated training, measured seed runs, optional self-attention ablation and paired comparisons. NRMS has two notebooks across the project, including its baseline.
+- `utils/`: equivalent cross-family table I/O, paths, ranking primitives and the evaluator shared by UBCF/CBF/popularity. Family-specific model code remains in notebooks.
+- `reports/`: preserved submitted reports, figures, tables and historical result JSONs.
+- `references/`: course guidelines, teaching examples, original project notes and download references.
+- `tests/`: synthetic pipeline and notebook validation.
 
-Our project follows a standard end-to-end data science lifecycle divided into 5 clear stages:
+## Environment and locations
 
-| Stage # | Stage Name | Description | Target Directory | Example Files |
-|---|---|---|---|---|
-| **1** | **Exploratory Data Analysis (EDA)** | Understand data distribution, correlation, outliers, and initial business insights. | `data_preparation/` | `1_eda.ipynb`, `1_eda_text.ipynb` |
-| **2** | **Data Preprocessing** | Missing value imputation, outlier handling, text cleaning, normalization, deduplication. | `data_preparation/` | `2_preprocessing.ipynb` |
-| **3** | **Feature Engineering** | Extraction of domain features, TF-IDF / embeddings, encoding, feature selection, scaling. | `data_preparation/` | `3_feature_engineering.ipynb` |
-| **4** | **Base Models** | Establish simple benchmarks (e.g., Logistic Regression, Naive Bayes, Decision Tree). | `models/` | `4_basemodels.ipynb` |
-| **5** | **Advanced / Other Models** | Tree ensembles (Random Forest, LightGBM, XGBoost), Deep Learning/NLP models, ensembling & tuning. | `models/` | `5_xgboost.ipynb`, `5_bert.ipynb`, `5_ensemble.ipynb` |
+Install `requirements.txt` in a Python environment with a Jupyter kernel. GPU PyTorch is recommended for real training. LightGBM is optional; the existing stacker uses its sklearn alternative when it is unavailable. Parquet is optional; table I/O falls back to pickle.
 
----
+The default raw location is `data/raw`. Existing `data/train` and `data/dev` layouts, `valid` as the development source name, and `MINDsmall_train`/`MINDsmall_dev` folders are supported. Set `MIND_DATA_DIR` to select one dataset unambiguously. Raw folders contain `news.tsv`, `behaviors.tsv`, and entity vectors. Set `BT4222_GLOVE_PATH` to the existing `glove.6B.300d.txt` file; the default is `data/glove/glove.6B.300d.txt`.
 
-## 📁 Repository Structure & File Naming Conventions
+Configure environment variables before the setup cell:
 
-### 1. Directory Structure
+| Variable | Purpose |
+|---|---|
+| `MIND_DATA_DIR` | Raw source parent directory |
+| `BT4222_BASE` | Local or Drive project data root |
+| `BT4222_PROCESSED_DIR` | Preprocessing output directory |
+| `BT4222_FEATURE_DIR` | Feature artifact directory |
+| `BT4222_OUTPUT_DIR` | Generated experiment results |
+| `BT4222_GLOVE_PATH` | GloVe text file |
+| `BT4222_USE_DRIVE=1` | Mount Google Drive in Colab |
+| `HF_TOKEN` | Optional Hugging Face dataset token |
 
-```text
-bt4222-group12/
-├── README.md
-├── data_preparation/
-│   ├── 1_eda.ipynb
-│   ├── 2_preprocessing.ipynb
-│   └── 3_feature_engineering.ipynb
-├── models/
-│   ├── 4_basemodels.ipynb
-│   ├── 5_xgboost.ipynb
-│   └── 5_neural_net.ipynb
-├── references/              # Project guidelines, rubrics, and references
-│   └── ...
-└── data/                    # (Local only - DO NOT commit large datasets)
-    ├── raw/
-    └── processed/
-```
+Drive mode retains `/content/drive/MyDrive/Y4S1/BT4222` and its `MLP` feature folder by default; override locations for a different shared folder. Open notebooks from the repository or their containing directory so `utils` is accessible. In Colab, make the repository available before running setup. The optional original Hugging Face download is in preprocessing; existing links are retained in [dataset references](references/dataset_links.md).
 
-### 2. File Naming Rules
+## Execution
 
-To keep everyone's work organized and avoid merge collisions:
-- **Prefix files with the pipeline stage number**: `<stage_number>_<description>.ipynb`
-  - Examples: `1_eda.ipynb`, `2_preprocessing_text.ipynb`, `3_features_embedding.ipynb`, `4_basemodels.ipynb`, `5_lightgbm.ipynb`
-- **Use lowercase and underscores (`_`)**: Avoid spaces, special characters, or names like `test.ipynb`, `final.ipynb`, `final_v2.ipynb`.
-- If working on alternative experiments, append your model or feature identifier (e.g., `5_bert_classifier.ipynb`).
+1. Run `2_preprocessing.ipynb` to export source-aware tables and the 5-1-1 partition.
+2. Run `3_feature_engineering.ipynb` to prepare all required inputs, including MLP standardization and attention histories. Its metadata documents canonical names and distinct index spaces. Article-based consumers use the same MiniLM content vectors and normalized TransE entity vectors; missing entity vectors are zero. No second CBF text encoder or fallback representation is generated.
+3. Run `1_eda.ipynb`. The raw-data sections can run after preprocessing; the descriptive sections calculate statistics directly from the preprocessed tables. EDA is not an upstream dependency of model fitting.
+4. Run the required baseline notebooks independently. For hybrid stacking, finish `4_5` (including its final stacking export), `5_1` and `5_2`, then run `5_4`. The stacker consumes canonical 4_5 popularity scores rather than a separately tuned popularity model.
+5. Run the MLP or NRMS experiments. Initial/improved MLP experiments use separate directories. Enable NRMS paired comparisons only after the reference and gated seed checkpoints have been generated with the advanced notebook's matching evaluation protocol.
 
----
+Training, ablation and multi-seed cells can be expensive. Their original defaults are retained. Model notebooks load prepared features rather than running feature engineering through notebook execution.
 
-## 🌿 Git Branching & Contribution Guidelines
+Generated artifacts belong under configured local/Drive locations and are ignored by Git. Embedding caches identify input text and encoder settings. The final feature manifest verifies exported file contents independently of their location. Regenerate the complete bundle when preparation changes and choose a new experiment output directory. Legacy bundles without a manifest must be rebuilt. Historical reports/results under `reports` are not live training outputs.
 
-> **Rule #1:** Never push untested or direct code changes straight to the `main` branch. Always work on a separate branch and open a Pull Request (PR).
+## Evaluation
 
-### 1. Branch Naming Convention
+Report AUC, MRR, nDCG@5 and nDCG@10. User cohorts use history at the impression: cold = 0, sparse = 1-4, warm = at least 5. Original detailed model diagnostics may additionally report other non-exclusive groups.
 
-Format your branch name as:
-```text
-<stage>/<short-description>
-```
-or (if preferred for tracking ownership):
-```text
-<your-name>/<stage>-<short-description>
-```
+Existing metric semantics are preserved: MLP averages reciprocal ranks over clicked items; hybrid and NRMS use the first clicked rank. Tie and one-class AUC behavior also follow their source evaluators. Cold-article reporting retains each source workflow's click-history window and candidate selection. Hybrid uses build-window click/history knowledge; MLP uses its existing lagged click feature and removes clicked warm candidates in its cold-article ranking. The original NRMS evaluator has no article-cold cohort; no new definition is fabricated. Do not interpret scores from different evaluator or information-window protocols as directly interchangeable.
 
-**Allowed stage prefixes:**
-- `eda/` - for exploratory analysis
-- `prep/` - for data cleaning and preprocessing
-- `feat/` - for feature engineering
-- `model/` - for model development (baseline or advanced)
-- `docs/` - for documentation and report preparation
-- `fix/` - for bug fixes in shared utility code
+## Verification
 
-**Examples:**
-- `eda/target-distribution`
-- `prep/handle-missing-data`
-- `feat/bert-embeddings`
-- `model/xgboost-hyperopt`
-- `minh/model-stacking`
+Run `python tests/verify_notebooks.py` for structure, syntax, imports and layout contracts. Run `python tests/verify_pipeline.py` for the temporary synthetic pipeline, including one-epoch training smoke tests. It uses seeded cached text-vector fixtures, not downloaded pretrained MiniLM weights, and disables optional repeated training. No fixture metric is a project benchmark.
 
----
+See [migration notes](docs/migration.md), [validation](docs/validation.md), and [refactor plan](REFACTOR_PLAN.md).
 
-### 2. Step-by-Step Contribution Workflow
+CPU execution: `python tests/run_cpu_pipeline.py preprocessing eda popularity` runs real data and saves execution counts, text, rich tables and plots directly in the source notebooks, with review copies and cell logs under `outputs/cpu_validation`. Notebooks not executed on real inputs retain empty outputs. Formatting checks allow valid actual execution output and reject error output.
 
-#### Step 1: Update your local `main`
-Always pull the latest changes before starting new work:
-```bash
-git checkout main
-git pull origin main
-```
+The additional `4_5_popularity_smoothed.ipynb` baseline uses alpha=20, a training CTR prior and the MLP-compatible preceding-day update protocol. It reports standalone smoothed CTR and frozen click counts using the same MLP evaluator. Run `python tests/run_cpu_pipeline.py smoothed_popularity` to produce real-data output in the notebook. The learned MLP fallback remains a separate combination rule.
 
-#### Step 2: Create and switch to your feature branch
-```bash
-git checkout -b <stage>/<feature-description>
-# Example:
-git checkout -b feat/tfidf-features
-```
+The complete implemented feature dictionary, formulas, missing-value conventions, sequence inputs and artifact inventory are in the opening Markdown cells of [feature engineering](data_preparation/3_feature_engineering.ipynb).
 
-#### Step 3: Implement your code & test
-- Ensure notebooks run top-to-bottom without errors (`Kernel` -> `Restart and Run All`).
-- Set a fixed random seed (e.g., `seed = 42`) for reproducibility.
-- Clear excessive outputs (e.g. huge printouts or gigabytes of embedded interactive plots) before saving if they inflate notebook file size.
+Feature split tables are stored under `BT4222_FEATURE_DIR/train/`, `val/` and `test/`. Each contains `impressions`, `groups` and `candidates` tables (Parquet or pickle). Shared catalog/profile tables, arrays and model input bundles remain at the feature root.
 
-#### Step 4: Commit your changes with meaningful messages
-```bash
-git status
-git add <specific-files>
-git commit -m "<stage>: brief summary of what was done"
-# Examples:
-# git commit -m "prep: clean text descriptions and remove stopwords"
-# git commit -m "model: add LightGBM baseline with 5-fold cross validation"
-```
+## Run on Google Colab
 
-#### Step 5: Push your branch to GitHub
-```bash
-git push -u origin <stage>/<feature-description>
-```
+Open each notebook from the same pushed GitHub branch. Every pipeline notebook starts with a Colab setup cell. Edit `REPO_URL`, `BRANCH`, `RUN_NAME` and `BASE`, then run the cell; it mounts Drive, clones the selected branch and installs requirements. A monorepo containing `bt4222-group12/` and a standalone project repo are both supported. Private repositories require GitHub authentication; do not put access tokens in notebook source. Use a fresh runtime when changing the checked-out code.
 
-#### Step 6: Create a Pull Request (PR)
-1. Go to GitHub repository page.
-2. Open a Pull Request targeting `main`.
-3. In the PR description:
-   - Summarize key changes and decisions made.
-   - Attach performance metrics (e.g., Accuracy, F1-Score, AUC) if applicable.
-   - Mention team members for review before merging.
+Place raw files at `BASE/data/train/` and `BASE/data/dev/` (each contains `news.tsv`, `behaviors.tsv`, `entity_embedding.vec`), and GloVe at `BASE/data/glove/glove.6B.300d.txt`. Existing preprocessing/features made before the portable manifest revision must be regenerated into empty configured directories; keep old outputs separately.
 
----
+Run in this order:
 
-## ⚠️ Important Team Rules
+1. `2_preprocessing.ipynb` (CPU).
+2. `1_eda.ipynb` (CPU; can run independently after preprocessing).
+3. `3_feature_engineering.ipynb` (GPU recommended; needs MiniLM download and GloVe). Finish the final **Completed feature bundle** cell.
+4. Baselines `4_1` through `4_5` (independent; GPU recommended for NRMS).
+5. Finish `4_5` popularity, `5_1` UBCF and `5_2` CBF, then `5_4` stacking. Use the same output root for these notebooks.
+6. `6_1_mlp.ipynb`, `6_2_mlp_attention.ipynb` (GPU recommended).
+7. `7_1_nrms_popularity_gated.ipynb` (GPU recommended). Inspect optional multi-seed/ablation switches and budgets before running expensive sections.
 
-1. **Large Data Files:**
-   - **DO NOT commit raw or large data files** (`.csv`, `.xlsx`, `.parquet`, `.zip`, `.pt`, `.pkl` > 10MB) to Git.
-   - Keep datasets in a local `data/` directory (ignored by git) or store shared datasets on team Google Drive / cloud storage.
-2. **Reproducibility:**
-   - Always state package dependencies or versions if installing external libraries.
-   - Document input paths and output files at the top of each notebook.
-3. **Model Evaluation Consistency:**
-   - Agree on shared validation splits (e.g., train/validation/test split ratios or stratified K-fold) and primary evaluation metrics so all models can be benchmarked fairly.
+All notebooks in one experiment use the same `RUN_NAME`; the models have separate subfolders. Use `run_02` for a fresh experiment instead of reusing `run_01`. `initial` and `improved` are MLP variants, not run counters. Save/download each executed notebook to retain its displayed outputs; experiment artifacts are written separately to `BASE/runs/RUN_NAME/`.
+
+MLP and NRMS validate only the exported feature bundle and can use it without raw files. EDA, popularity and hybrid workflows also use preprocessed tables. When raw inputs are available, loading preprocessing verifies their content hashes rather than absolute paths or timestamps. A feature bundle is published only after all exports complete; changed/missing files are rejected. Output roots record the feature identity so checkpoints cannot silently cross prepared datasets.
+
+The `4_5` final export writes `stack_train_scores`, `val_scores` and `test_scores` under `base_models/popularity_smoothed/`, plus `stacking_scores.json` with dataset provenance, phase cutoffs, priors and file hashes. Stack-training scores use days 0–3 to score day 4; their prior also uses only days 0–3. Validation/test retain the original 4_5 scoring policy. The former `5_3_popularity.ipynb` is removed. After updating, run 4_5 through its final cell and rerun 5_4; existing compatible UBCF/CBF scores can be reused. No feature regeneration is required for this scoring change.

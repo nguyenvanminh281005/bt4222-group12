@@ -1,0 +1,16 @@
+# Core notebook and model dependencies. Install an appropriate CPU/CUDA torch build.
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+seaborn
+torch
+transformers
+sentence-transformers
+huggingface-hub
+ipykernel
+# Validation
+nbformat
+pyflakes
+# Optional accelerators/backends: pyarrow, lightgbm
