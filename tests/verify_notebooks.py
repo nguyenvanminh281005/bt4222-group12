@@ -47,7 +47,9 @@ def main():
     assert {
         path.name for path in (ROOT / "data_preparation").glob("*.ipynb")
     } == expected
-    assert len([path for path in active if "nrms" in path.name]) == 2
+    assert {path.name for path in active if "nrms" in path.name} == {
+        "4_4_nrms.ipynb", "7_1_nrms_popularity_gated.ipynb", "7_2_nrms_saved_latent.ipynb"
+    }
     assert not list((ROOT / "models").rglob("*.py"))
     assert {path.name for path in (ROOT / "utils").glob("*.py")} == {
         "__init__.py",
