@@ -66,6 +66,8 @@ Run `python tests/verify_mlp_study.py` to smoke-test all 14 comprehensive-study 
 
 Run `python tests/verify_mlp_hour_study.py` to check the focused saved-weight notebook: exactly one new fit, same seed, unchanged reference weights, cache reuse, missing/mismatched-reference rejection, and hourly/latent outputs on synthetic inputs.
 
+The focused notebook's pair representation is the final hidden **Linear output before ReLU** (32 dimensions in the saved model). Plots explicitly label this extraction point. Score colouring still uses the complete model, including ReLU and the scoring Linear; the extractor verifies that reconstructed scores match normal inference.
+
 See [migration notes](docs/migration.md), [validation](docs/validation.md), and [refactor plan](REFACTOR_PLAN.md).
 
 CPU execution: `python tests/run_cpu_pipeline.py preprocessing eda popularity` runs real data and saves execution counts, text, rich tables and plots directly in the source notebooks, with review copies and cell logs under `outputs/cpu_validation`. Notebooks not executed on real inputs retain empty outputs. Formatting checks allow valid actual execution output and reject error output.

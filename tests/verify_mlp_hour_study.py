@@ -68,6 +68,14 @@ def main():
                 assert export['pca'].shape==(len(scope['pair_rows']),2)
                 assert np.array_equal(export['labels'],scope['sample_labels'])
                 assert np.isfinite(export['scores']).all()
+                assert str(export['representation'])=='final_hidden_linear_pre_relu'
+                model=scope['reference'] if name=='with_hour_saved' else scope['without_hour']
+                captured=[]
+                hook=model.mlp[-4].register_forward_hook(lambda module,args,out:captured.append(out.detach().cpu().numpy()))
+                with torch.no_grad():
+                    scope['forward'](model,scope['batch_from'](scope['A']['test'],[int(scope['sample_g'][0])]))
+                hook.remove()
+                assert np.allclose(export['hidden'][0],captured[0][0,0]),'Hidden must be the Linear output before ReLU'
         assert len(scope['pair_rows'])==sum(scope['A']['test']['n'][scope['sample_g']])
         assert scope['latent_summary']['histogram_overlap'].between(0,1.000001).all()
         assert len(scope['hourly']['val'])==len(scope['hourly']['test'])==24
