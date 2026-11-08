@@ -59,7 +59,17 @@ def main():
         assert calls[0][1]['seed']==42
         assert calls[0][0][0]['drop']==['diversity_ratio','habit_score','hour_cos','hour_sin']
         assert weights.read_bytes()==previous_bytes
-        assert len(scope['latent_summary'])==8
+        assert len(scope['latent_summary'])==4
+        assert 'space' not in scope['latent_summary'].columns
+        np=scope['np']
+        for name in ('with_hour_saved','without_hour'):
+            with np.load(Path(temp)/f'pair_hidden_{name}.npz') as export:
+                assert export['hidden'].shape==(len(scope['pair_rows']),8)
+                assert export['pca'].shape==(len(scope['pair_rows']),2)
+                assert np.array_equal(export['labels'],scope['sample_labels'])
+                assert np.isfinite(export['scores']).all()
+        assert len(scope['pair_rows'])==sum(scope['A']['test']['n'][scope['sample_g']])
+        assert scope['latent_summary']['histogram_overlap'].between(0,1.000001).all()
         assert len(scope['hourly']['val'])==len(scope['hourly']['test'])==24
         assert scope['recorded_hours']('test').tolist()==[0,0,0,1,1,7,8,8,9,20,23,23]
         exec(training_source,scope)
