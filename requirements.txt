@@ -5,6 +5,7 @@ scipy
 scikit-learn
 matplotlib
 seaborn
+shap
 torch
 transformers
 sentence-transformers
