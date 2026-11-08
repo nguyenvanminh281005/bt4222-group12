@@ -96,18 +96,23 @@ meta['imputation_means']=dict.fromkeys(CAND_COLS,0.0)
 user_x_all=np.zeros((4,len(USER_COLS)),dtype='float32')
 user_x_all[:,0]=np.log1p([0,1,5,6]);user_x_all[1:,1]=1
 A={}
+data={}
 for split in SPLITS:
     n=np.full(12,5,dtype='int64');start=np.arange(12,dtype='int64')*5
     prof=np.arange(12,dtype='int64')%4
     cand_x=rng.normal(size=(60,len(CAND_COLS))).astype('float32')
     for g in np.flatnonzero(prof==0): cand_x[start[g]:start[g]+5,3:]=0
-    hours=np.arange(12)*2
+    minutes=np.array([0,30,59,60,61,479,480,539,540,1215,1380,1439])
+    hours=minutes/60.0
     ctx=np.column_stack([np.sin(2*np.pi*hours/24),np.cos(2*np.pi*hours/24),np.zeros(12)]).astype('float32')
     A[split]=dict(n=n,start=start,prof=prof,user_x=user_x_all[prof],ctx_x=ctx,
         news=rng.integers(1,N_ART,size=60),cand_x=cand_x,
         label=np.tile([1.,0.,0.,0.,0.],12).astype('float32'),
         hist_len=np.array([0,1,5,6])[prof],user_id=prof,
         is_cold_article=np.ones(60,dtype='int8'))
+    A[split]['impression_id']=np.arange(12)
+    data[split]={'imp':pd.DataFrame({'impression_id':np.arange(12),
+        'time':pd.Timestamp('2019-11-15')+pd.to_timedelta(minutes,unit='m')}).sample(frac=1,random_state=42)}
 '''
 
 CHECKS = r'''
@@ -115,6 +120,7 @@ assert len(SPECS)==14
 assert len(folders)==14
 assert all(p.joinpath('complete.json').exists() for p in folders.values())
 assert len(hourly_tables['val'])==len(hourly_tables['test'])==24
+assert recorded_hours('val').tolist()==[0,0,0,1,1,7,8,8,9,20,23,23]
 assert len(latent_summary)==16
 assert np.load(Path(OUT_DIR)/'shap_values.npz')['values'].shape[0]==2
 assert pd.read_csv(Path(OUT_DIR)/'shap_sample_and_additivity.csv').residual.abs().max()<1e-3

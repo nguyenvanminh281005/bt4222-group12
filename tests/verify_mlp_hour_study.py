@@ -61,6 +61,7 @@ def main():
         assert weights.read_bytes()==previous_bytes
         assert len(scope['latent_summary'])==8
         assert len(scope['hourly']['val'])==len(scope['hourly']['test'])==24
+        assert scope['recorded_hours']('test').tolist()==[0,0,0,1,1,7,8,8,9,20,23,23]
         exec(training_source,scope)
         assert len(calls)==1,'Rerunning must load the completed ablation, not fit again'
         b=scope['batch_from'](scope['A']['val'],[2])
