@@ -1,9 +1,12 @@
 """Run the study with tiny synthetic inputs; these are not project benchmarks."""
 import json
+import ast
+import inspect
 import os
 import sys
 import tempfile
 import types
+from unittest.mock import patch
 from pathlib import Path
 
 os.environ['MPLBACKEND'] = 'Agg'
@@ -137,8 +140,37 @@ assert identity!=run_identity(next(iter(SPECS)),42)
 print('PASS: 14 retrained variants, cache reloads, validation selection, hourly tables, SHAP additivity and shared-space diagnostics')
 '''
 
+def verify_interactive_identity(notebook):
+    """Reproduce Colab's source-less __main__ classes before running training."""
+    source = next(c['source'] for c in notebook['cells']
+                  if c['cell_type']=='code' and 'def implementation_signature(' in c['source'])
+    tree = ast.parse(source)
+    helper = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == 'implementation_signature')
+    scope = {'json':json}
+    exec(compile(ast.Module(body=[helper], type_ignores=[]), '<fingerprint>', 'exec'), scope)
+    signature = scope['implementation_signature']
+    snippet = 'class Ranker:\n    def forward(self, x):\n        return (lambda y: y + 1)(x)\n'
+    module = types.ModuleType('__main__')
+    with patch.dict(sys.modules, {'__main__':module}):
+        exec(compile(snippet, '<colab-cell-1>', 'exec'), module.__dict__)
+        try:
+            inspect.getsource(module.Ranker)
+        except OSError:
+            pass
+        else:
+            raise AssertionError('Fixture did not reproduce the reported Colab error')
+        original = signature(module.Ranker)
+        exec(compile('\n\n'+snippet, '<colab-cell-99>', 'exec'), module.__dict__)
+        assert original == signature(module.Ranker), 'Cell filenames/lines must not affect cache identity'
+        exec(compile(snippet.replace('y + 1', 'y + 2'), '<colab-cell-99>', 'exec'), module.__dict__)
+        assert original != signature(module.Ranker), 'Method/nested-code edits must invalidate the cache'
+    print('PASS: source-less Colab class identity, stable cell relocation and nested-code invalidation')
+
+
 def main():
     notebook=json.loads((ROOT/'models/6_mlp/6_3_mlp_comprehensive_ablation.ipynb').read_text(encoding='utf-8'))
+    verify_interactive_identity(notebook)
     code_cells=[c['source'] for c in notebook['cells'] if c['cell_type']=='code']
     start=next(i for i,s in enumerate(code_cells) if s.startswith('F = meta['))
     with tempfile.TemporaryDirectory() as temp:
