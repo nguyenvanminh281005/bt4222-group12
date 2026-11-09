@@ -2,20 +2,159 @@
 
 MIND-small news recommendation: data exploration, shared preparation, basic recommenders, hybrid ranking, feature-selected MLP and popularity-gated NRMS.
 
-## Structure
+## Repository structure
 
-- `data_preparation/1_eda.ipynb`: consolidated interaction, feedback, sparsity, popularity, content and temporal analysis.
-- `data_preparation/2_preprocessing.ipynb`: source tables, global impression identities and temporal partitions.
-- `data_preparation/3_feature_engineering.ipynb`: all feature preparation, model input exports and final MLP-specific sections.
-- `models/4_base_models/`: basic popularity, UBCF, CBF and original-architecture NRMS.
-- `models/5_ubcf_cbf/`: advanced UBCF, CBF and stacking. Popularity scores come from `4_5_popularity_smoothed.ipynb`.
-- `models/6_mlp/6_1_mlp.ipynb`: initial and improved MLP experiments in separate, fully configured sections with separate outputs.
-- `models/6_mlp/6_2_mlp_attention.ipynb`: improved MLP and history-attention comparison.
-- `models/7_nrms/7_1_nrms_popularity_gated.ipynb`: gated training, measured seed runs, optional self-attention ablation and paired comparisons. NRMS has two notebooks across the project, including its baseline.
-- `utils/`: equivalent cross-family table I/O, paths, ranking primitives and the evaluator shared by UBCF/CBF/popularity. Family-specific model code remains in notebooks.
-- `reports/`: preserved submitted reports, figures, tables and historical result JSONs.
-- `references/`: course guidelines, teaching examples, original project notes and download references.
-- `tests/`: synthetic pipeline and notebook validation.
+```text
+bt4222-group12/
+├── README.md
+├── requirements.txt                       # Python dependencies
+├── REFACTOR_PLAN.md                        # Refactor scope and acceptance criteria
+├── data_preparation/                       # Shared data pipeline
+│   ├── 1_eda.ipynb                         # Interaction, content and temporal analysis
+│   ├── 2_preprocessing.ipynb               # Source tables, identities and temporal splits
+│   └── 3_feature_engineering.ipynb         # Shared features and model input bundles
+├── models/                                 # Model fitting, scoring and evaluation
+│   ├── 4_base_models/                      # Standalone baselines
+│   │   ├── 4_1_popularity.ipynb            # Frozen training click counts
+│   │   ├── 4_2_ubcf.ipynb                  # User-based collaborative filtering
+│   │   ├── 4_3_cbf.ipynb                   # Content-based filtering
+│   │   ├── 4_4_nrms.ipynb                  # Original NRMS architecture
+│   │   └── 4_5_popularity_smoothed.ipynb   # Smoothed CTR and stacking score exports
+│   ├── 5_ubcf_cbf/                         # Advanced scorers and hybrid stacking
+│   │   ├── 5_1_ubcf.ipynb
+│   │   ├── 5_2_cbf.ipynb
+│   │   └── 5_4_stacking.ipynb              # Combines 4_5, 5_1 and 5_2 scores
+│   ├── 6_mlp/
+│   │   ├── 6_1_mlp.ipynb                  # Initial and improved MLP experiments
+│   │   └── 6_2_mlp_diagnostics.ipynb      # Saved-model plots and hour-feature ablation
+│   └── 7_nrms/
+│       └── 7_1_nrms_popularity_gated.ipynb # Gated NRMS, seed runs and comparisons
+├── utils/                                  # Shared helpers across model families
+│   ├── data_utils.py                      # Paths, table I/O and artifact checks
+│   ├── metrics.py                         # Ranking metrics and evaluation helpers
+│   ├── metrics.ipynb                      # Metric documentation and examples
+│   └── __init__.py
+├── tests/                                  # Validation and notebook execution tools
+│   ├── verify_notebooks.py                # Notebook structure, syntax and contracts
+│   ├── verify_pipeline.py                 # Synthetic pipeline and training smoke checks
+│   ├── run_cpu_pipeline.py                # Selected real-data CPU workflows
+│   └── run_local_pipeline.py              # Local notebook execution
+├── docs/                                   # Technical documentation
+│   ├── FEATURES.md                        # Feature reference
+│   ├── migration.md                       # Migration notes
+│   └── validation.md                      # Validation evidence and limitations
+├── reports/                                # Submitted reports and historical artifacts
+│   ├── BT4222_FinalReport.md              # Also available as PDF
+│   ├── BT4222_InterimReport.md            # Also available as PDF
+│   ├── figures/
+│   ├── tables/
+│   └── results/                           # Historical result JSONs
+└── references/                             # Supporting material
+    ├── dataset_links.md                   # Dataset download references
+    ├── guidelines/                        # Course deliverable guidelines
+    ├── examples/                          # Teaching example notebooks
+    └── project_notes/                     # Original project and model notes
+```
+
+The tree shows source files and groups report/reference assets by folder. Raw data, generated features, caches, checkpoints and new experiment outputs live in configured local or Google Drive locations; they are separate from the historical artifacts in `reports/` and are not committed to Git.
+
+Read the pipeline as follows (notebook numbers label stages, not a strict execution order):
+
+```text
+Raw MIND data
+    └── 2_preprocessing ──┬── 1_eda (descriptive analysis)
+                          └── 3_feature_engineering
+                                  ├── 4_* baselines
+                                  ├── 5_1 UBCF + 5_2 CBF + 4_5 popularity
+                                  │       └── 5_4 stacking
+                                  ├── 6_1 MLP ── 6_2 diagnostics
+                                  └── 7_1 popularity-gated NRMS
+```
+
+Model-specific code stays in its notebook. For stacking, finish the score exports from `4_5`, `5_1` and `5_2` first. MLP diagnostics load the saved improved model from `6_1`; NRMS paired comparisons require matching reference and gated checkpoints. See **Execution** and **Run on Google Colab** below for details.
+
+## Shared Google Drive storage
+
+The [Group 12 shared Drive folder](https://drive.google.com/drive/u/0/folders/1ag8e78lQXeWicnx39IpkwBZ4fFdjytLD) stores raw data, prepared inputs, experiment artifacts and working report/presentation files. The layout below was verified with a read-only recursive rclone listing on **2026-11-09**. It is a compact inventory: CSV files are omitted, and repeated experiment files are grouped using `{...}` and `*`.
+
+```text
+BT4222 - Group 12/                          # Shared project data root (BASE in Colab)
+├── BT4222 Final Presentation.pptx
+├── BT4222 Final Report.docx
+├── BT4222 Interim Report.docx
+├── data/                                  # Raw MIND-small data and pretrained GloVe
+│   ├── train/
+│   │   ├── news.tsv
+│   │   ├── behaviors.tsv
+│   │   ├── entity_embedding.vec
+│   │   └── relation_embedding.vec
+│   ├── dev/                               # Same four filenames as train/
+│   └── glove/
+│       └── glove.6B.300d.txt
+├── processed/
+│   └── preprocessing/
+│       ├── news.parquet
+│       ├── behaviors.parquet
+│       └── metadata.json
+├── features/                              # Shared feature bundle consumed by models
+│   ├── feature_manifest.json
+│   ├── feature_meta.json
+│   ├── articles.parquet
+│   ├── user_profiles.parquet
+│   ├── article_content_emb.npy
+│   ├── article_content_emb_{config,ids}.json
+│   ├── kg_entity_emb.npy
+│   ├── user_category_affinity.npy
+│   ├── user_history_{emb,indices}.npy
+│   ├── hybrid_news.pkl
+│   ├── hybrid_user_state.pkl
+│   ├── mlp_inputs.pkl
+│   ├── nrms_features.pkl
+│   └── {train,val,test}/
+│       ├── impressions.parquet
+│       ├── groups.parquet
+│       └── candidates.parquet
+├── outputs/                               # Separate score/cache location
+│   ├── cache/
+│   └── scores_ubcf_{stack_train,val,test}.parquet
+└── runs/                                  # Results separated by experiment run
+    ├── run_01/
+    │   ├── feature_identity.json
+    │   ├── base_models/                    # popularity, popularity_smoothed, ubcf, cbf, nrms
+    │   ├── ubcf_cbf/                       # Scorer/stacker scores and cache
+    │   ├── eda/                            # figures/ and tables/
+    │   ├── nrms/                           # checkpoints/ and figures/ (including result JSONs)
+    │   └── mlp/
+    │       ├── initial/                    # Weights, metrics, predictions and ablation_runs/
+    │       ├── improved/                   # Weights, metrics, predictions and ablation_runs/
+    │       ├── attention/
+    │       ├── comprehensive_ablation/     # runs/ and figures/
+    │       └── staged/                     # stage1_initial through stage4_final
+    ├── run_02/
+    │   ├── feature_identity.json
+    │   ├── pipeline.log
+    │   ├── pipeline_rerun.log
+    │   ├── base_models/                    # Same five model folders as run_01
+    │   ├── ubcf_cbf/                       # UBCF, CBF and hybrid score exports
+    │   ├── eda/                            # figures/ and tables/
+    │   ├── nrms/                           # Seed checkpoints, figures and result JSONs
+    │   ├── mlp/                            # initial/, improved/ and attention/
+    │   └── executed/                       # Executed notebook copies and .done markers
+    └── run_temp/
+        ├── feature_identity.json
+        ├── mlp/saved_best_hour_ablation/    # Hour ablation weights, vectors and figures
+        └── nrms/latent_gated_seed42/        # Latent vectors, PCA and visualization
+```
+
+Use `data/` for raw inputs, `processed/preprocessing/` for cleaned tables, `features/` for model inputs, and `runs/<RUN_NAME>/` for checkpoints, predictions, metrics and figures. For example, MLP weights and metrics are at `runs/run_02/mlp/improved/mlp_best.pt` and `metrics.json`; NRMS checkpoints are at `runs/run_02/nrms/checkpoints/`. Existing Drive artifacts are listed by filename only; this inventory does not establish that every checkpoint matches the current code or feature bundle. The `executed/` folder also retains older notebook names.
+
+In Colab, make this folder accessible under My Drive (add a shortcut if it is shared with you), then set `BASE = Path("/content/drive/MyDrive/BT4222 - Group 12")` in the setup cell. Adjust `BASE` if your shortcut has a different name or location. The setup maps `MIND_DATA_DIR` to `BASE/data`, `BT4222_PROCESSED_DIR` to `BASE/processed`, `BT4222_FEATURE_DIR` to `BASE/features`, and `BT4222_OUTPUT_DIR` to `BASE/runs/RUN_NAME`.
+
+To refresh the listing with an authenticated rclone Drive remote (replace `YOUR_REMOTE` with your configured remote name):
+
+```sh
+rclone lsf YOUR_REMOTE: --drive-root-folder-id 1ag8e78lQXeWicnx39IpkwBZ4fFdjytLD --recursive --exclude '*.csv' --exclude '*.CSV' --tpslimit 1
+```
 
 ## Environment and locations
 
@@ -36,7 +175,7 @@ Configure environment variables before the setup cell:
 | `BT4222_USE_DRIVE=1` | Mount Google Drive in Colab |
 | `HF_TOKEN` | Optional Hugging Face dataset token |
 
-Drive mode retains `/content/drive/MyDrive/Y4S1/BT4222` and its `MLP` feature folder by default; override locations for a different shared folder. Open notebooks from the repository or their containing directory so `utils` is accessible. In Colab, make the repository available before running setup. The optional original Hugging Face download is in preprocessing; existing links are retained in [dataset references](references/dataset_links.md).
+The notebook Colab setup uses `/content/drive/MyDrive/BT4222 - Group 12` and its `features/` folder as described above. When the shared path helper is used without these setup overrides, its legacy Drive defaults are `/content/drive/MyDrive/Y4S1/BT4222` and the `MLP/` feature folder; configure the variables above to select the shared layout. Open notebooks from the repository or their containing directory so `utils` is accessible. In Colab, make the repository available before running setup. The optional original Hugging Face download is in preprocessing; existing links are retained in [dataset references](references/dataset_links.md).
 
 ## Execution
 
@@ -83,7 +222,7 @@ Run in this order:
 3. `3_feature_engineering.ipynb` (GPU recommended; needs MiniLM download and GloVe). Finish the final **Completed feature bundle** cell.
 4. Baselines `4_1` through `4_5` (independent; GPU recommended for NRMS).
 5. Finish `4_5` popularity, `5_1` UBCF and `5_2` CBF, then `5_4` stacking. Use the same output root for these notebooks.
-6. `6_1_mlp.ipynb`, `6_2_mlp_attention.ipynb` (GPU recommended).
+6. `6_1_mlp.ipynb`, then `6_2_mlp_diagnostics.ipynb` for saved-model diagnostics and hour-feature ablation (GPU recommended).
 7. `7_1_nrms_popularity_gated.ipynb` (GPU recommended). Inspect optional multi-seed/ablation switches and budgets before running expensive sections.
 
 All notebooks in one experiment use the same `RUN_NAME`; the models have separate subfolders. Use `run_02` for a fresh experiment instead of reusing `run_01`. `initial` and `improved` are MLP variants, not run counters. Save/download each executed notebook to retain its displayed outputs; experiment artifacts are written separately to `BASE/runs/RUN_NAME/`.
